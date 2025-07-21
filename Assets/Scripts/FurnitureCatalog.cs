@@ -26,6 +26,7 @@ namespace ARInteriorDesign
         [SerializeField] private InputField searchField;
         [SerializeField] private Button searchButton;
         [SerializeField] private Button clearSearchButton;
+        [SerializeField] private FurnitureSearchManager searchManager;
         
         [Header("Filters")]
         [SerializeField] private Dropdown priceRangeDropdown;
@@ -226,6 +227,18 @@ namespace ARInteriorDesign
             if (clearSearchButton != null)
             {
                 clearSearchButton.onClick.AddListener(ClearSearch);
+            }
+            
+            // Initialize advanced search manager
+            if (searchManager == null)
+            {
+                searchManager = FindObjectOfType<FurnitureSearchManager>();
+            }
+            
+            if (searchManager != null)
+            {
+                searchManager.OnSearchCompleted += OnAdvancedSearchCompleted;
+                searchManager.OnItemSelected += OnFurnitureItemSelected;
             }
             
             // Setup filters
@@ -595,5 +608,80 @@ namespace ARInteriorDesign
             CategorizeItems();
             UpdateFurnitureDisplay();
         }
-    }
-} 
+        
+        private void OnAdvancedSearchCompleted(System.Collections.Generic.List<FurnitureItem> results)
+        {
+            // Display advanced search results in the catalog
+            if (results != null && results.Count > 0)
+            {
+                // Temporarily replace current category items with search results
+                DisplayCustomFurnitureList(results);
+            }
+        }
+        
+        private void DisplayCustomFurnitureList(System.Collections.Generic.List<FurnitureItem> customItems)
+        {
+            if (furnitureButtonContainer == null || furnitureButtonPrefab == null) return;
+            
+            // Clear existing buttons
+            foreach (Transform child in furnitureButtonContainer)
+            {
+                Destroy(child.gameObject);
+            }
+            
+            // Create furniture buttons for custom list
+            foreach (FurnitureItem item in customItems)
+            {
+                GameObject buttonObj = Instantiate(furnitureButtonPrefab, furnitureButtonContainer);
+                
+                // Setup button components
+                Button button = buttonObj.GetComponent<Button>();
+                Text nameText = buttonObj.transform.Find("Name")?.GetComponent<Text>();
+                Text priceText = buttonObj.transform.Find("Price")?.GetComponent<Text>();
+                Image iconImage = buttonObj.transform.Find("Icon")?.GetComponent<Image>();
+                Button favoriteButton = buttonObj.transform.Find("FavoriteButton")?.GetComponent<Button>();
+                
+                if (nameText != null)
+                {
+                    nameText.text = item.displayName;
+                }
+                
+                if (priceText != null)
+                {
+                    priceText.text = $"${item.price:F2}";
+                }
+                
+                if (iconImage != null && item.icon != null)
+                {
+                    iconImage.sprite = item.icon;
+                }
+                
+                if (button != null)
+                {
+                    FurnitureItem itemCapture = item;
+                    button.onClick.AddListener(() => SelectFurniture(itemCapture));
+                }
+                
+                if (favoriteButton != null)
+                {
+                    FurnitureItem itemCapture = item;
+                    favoriteButton.onClick.AddListener(() => ToggleFavorite(itemCapture));
+                    
+                    // Update favorite button appearance
+                    bool isFavorite = favoriteItems.Contains(item);
+                    favoriteButton.GetComponent<Image>().color = isFavorite ? Color.red : Color.white;
+                                 }
+             }
+         }
+         
+         private void OnDestroy()
+        {
+            // Clean up event handlers
+            if (searchManager != null)
+            {
+                searchManager.OnSearchCompleted -= OnAdvancedSearchCompleted;
+                searchManager.OnItemSelected -= OnFurnitureItemSelected;
+            }
+        }
+     }
+ } 
